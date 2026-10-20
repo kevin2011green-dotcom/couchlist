@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Couchlist</title>
+  <meta name="description" content="Track the shows and movies you're watching, where they stream, and what's next.">
+  <meta name="theme-color" content="#14111f">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Shown when config.js still has placeholder values -->
+  <section id="setup-screen" class="screen center" hidden>
+    <div class="card narrow">
+      <h1 class="brand">Couchlist</h1>
+      <p>Almost there. Add your Supabase project URL and publishable key to <code>config.js</code>, then reload.</p>
+      <p class="muted">See README.md for the 5-minute setup.</p>
+    </div>
+  </section>
+
+  <!-- Sign in / create account -->
+  <section id="auth-screen" class="screen center" hidden>
+    <form id="auth-form" class="card narrow" autocomplete="on">
+      <h1 class="brand">Couchlist</h1>
+      <p class="muted" id="auth-subtitle">Sign in to your list</p>
+      <label>Email
+        <input type="email" id="auth-email" autocomplete="email" required>
+      </label>
+      <label>Password
+        <input type="password" id="auth-password" autocomplete="current-password" minlength="6" required>
+      </label>
+      <p id="auth-message" class="message" hidden></p>
+      <button type="submit" class="primary" id="auth-submit">Sign in</button>
+      <button type="button" class="link" id="auth-toggle">New here? Create an account</button>
+    </form>
+  </section>
+
+  <!-- Main list -->
+  <section id="app-screen" class="screen" hidden>
+    <header class="topbar">
+      <h1 class="brand small">Couchlist</h1>
+      <button class="icon-btn" id="account-btn" aria-label="Account">
+        <span id="account-initial">?</span>
+      </button>
+    </header>
+
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-status="watching" class="tab active">Watching <span class="count"></span></button>
+      <button role="tab" data-status="plan" class="tab">Up next <span class="count"></span></button>
+      <button role="tab" data-status="finished" class="tab">Finished <span class="count"></span></button>
+    </nav>
+
+    <div class="toolbar">
+      <input type="search" id="filter-text" placeholder="Search your list" aria-label="Search your list">
+      <div class="chips" id="service-chips"></div>
+    </div>
+
+    <p id="offline-banner" class="banner" hidden>Offline: showing your last saved list.</p>
+    <ul id="title-list" class="title-list"></ul>
+    <div id="empty-state" class="empty" hidden></div>
+
+    <button class="fab" id="add-btn" aria-label="Add a show or movie">+</button>
+
+    <footer class="credits">
+      Title data from <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>,
+      streaming data from <a href="https://www.justwatch.com" target="_blank" rel="noopener">JustWatch</a>.
+      This product uses the TMDB API but is not endorsed or certified by TMDB.
+    </footer>
+  </section>
+
+  <!-- Add: search TMDB -->
+  <dialog id="search-sheet" class="sheet">
+    <div class="sheet-head">
+      <h2>Add a title</h2>
+      <button class="icon-btn" data-close aria-label="Close">&times;</button>
+    </div>
+    <input type="search" id="search-input" placeholder="Search shows and movies" autocomplete="off">
+    <ul id="search-results" class="search-results"></ul>
+    <button class="link" id="manual-add">Can't find it? Add it manually</button>
+  </dialog>
+
+  <!-- Add / edit details -->
+  <dialog id="edit-sheet" class="sheet">
+    <form id="edit-form" method="dialog">
+      <div class="sheet-head">
+        <h2 id="edit-heading">Details</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Close">&times;</button>
+      </div>
+
+      <div class="edit-hero">
+        <img id="edit-poster" alt="" hidden>
+        <div class="edit-hero-text">
+          <label>Name
+            <input id="edit-name" required>
+          </label>
+          <div class="seg" id="edit-type">
+            <button type="button" data-value="tv">Show</button>
+            <button type="button" data-value="movie">Movie</button>
+          </div>
+        </div>
+      </div>
+
+      <fieldset>
+        <legend>Watching on</legend>
+        <p id="provider-hint" class="hint" hidden></p>
+        <div class="chips wrap" id="edit-services"></div>
+        <input id="edit-service-other" placeholder="Other service" hidden>
+      </fieldset>
+
+      <fieldset>
+        <legend>Status</legend>
+        <div class="seg" id="edit-status">
+          <button type="button" data-value="watching">Watching</button>
+          <button type="button" data-value="plan">Up next</button>
+          <button type="button" data-value="finished">Finished</button>
+        </div>
+      </fieldset>
+
+      <label>Recommended by
+        <input id="edit-recommended" placeholder="e.g. Jim at work">
+      </label>
+      <label>Notes
+        <textarea id="edit-notes" rows="3" placeholder="Anything you want to remember"></textarea>
+      </label>
+
+      <p id="edit-message" class="message" hidden></p>
+      <div class="sheet-actions">
+        <button type="button" class="danger" id="edit-delete" hidden>Delete</button>
+        <button type="submit" class="primary" id="edit-save">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Account -->
+  <dialog id="account-sheet" class="sheet">
+    <div class="sheet-head">
+      <h2>Account</h2>
+      <button class="icon-btn" data-close aria-label="Close">&times;</button>
+    </div>
+    <p>Signed in as <strong id="account-email"></strong></p>
+    <div class="sheet-actions">
+      <button class="primary" id="sign-out">Sign out</button>
+    </div>
+  </dialog>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
