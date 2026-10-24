@@ -64,8 +64,10 @@
 
     <div class="toolbar">
       <input type="search" id="filter-text" placeholder="Search your list" aria-label="Search your list">
-      <div class="chips" id="service-chips"></div>
-      <div class="chips" id="category-chips"></div>
+      <div class="filters">
+        <select id="service-filter" aria-label="Filter by service"></select>
+        <select id="category-filter" aria-label="Filter by category"></select>
+      </div>
     </div>
 
     <p id="offline-banner" class="banner" hidden>Offline: showing your last saved list.</p>
@@ -122,8 +124,15 @@
 
       <fieldset>
         <legend>Categories</legend>
-        <div class="chips wrap" id="edit-categories"></div>
-        <input id="edit-category-new" placeholder="New category, then press Enter" maxlength="30" enterkeyhint="done" hidden>
+        <div class="picker">
+          <button type="button" class="picker-toggle" id="cat-toggle" aria-expanded="false" aria-controls="cat-panel">
+            <span id="cat-summary"></span><span class="caret" aria-hidden="true">▾</span>
+          </button>
+          <div class="picker-panel" id="cat-panel" hidden>
+            <div class="checklist" id="edit-categories"></div>
+            <input id="edit-category-new" placeholder="+ New category, then press Enter" maxlength="30" enterkeyhint="done">
+          </div>
+        </div>
       </fieldset>
 
       <fieldset>

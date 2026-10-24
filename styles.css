@@ -115,9 +115,38 @@ button { font: inherit; cursor: pointer; border: 0; color: inherit; background: 
 }
 .chip.active { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
 .chip.suggested:not(.active) { border-color: var(--accent); color: var(--text); }
-#category-chips .chip.active, #edit-categories .chip.active { background: var(--cat); border-color: var(--cat); color: var(--accent-text); }
-.chip.add { border-style: dashed; }
-#edit-category-new { margin-top: 8px; }
+/* Filter dropdowns above the list */
+.filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.filters select {
+  min-width: 0;
+  appearance: none;
+  background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23a39cb8' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 12px center;
+  color: var(--muted);
+  border: 1px solid var(--surface-2);
+  border-radius: 10px;
+  padding: 9px 32px 9px 12px;
+  font: inherit; font-size: 14px;
+  text-overflow: ellipsis;
+}
+.filters select.active { color: var(--text); border-color: var(--accent); }
+#category-filter.active { border-color: var(--cat); }
+.filters select option { background: var(--surface); color: var(--text); }
+
+/* Collapsible category picker on the edit sheet */
+.picker { background: var(--surface-2); border-radius: 10px; }
+.picker-toggle {
+  width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  padding: 12px; text-align: left;
+}
+#cat-summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--cat); }
+#cat-summary.none { color: var(--muted); }
+.caret { color: var(--muted); transition: transform 0.15s; }
+.picker-toggle[aria-expanded="true"] .caret { transform: rotate(180deg); }
+.picker-panel { padding: 0 12px 12px; display: grid; gap: 10px; }
+.checklist { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; }
+.check { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 15px; padding: 6px 0; }
+.check input { width: 18px; height: 18px; margin: 0; padding: 0; flex-shrink: 0; accent-color: var(--cat); }
+#edit-category-new { background: var(--surface); }
 .title-cats { margin: 4px 0 0; font-size: 12px; color: var(--cat); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .banner { background: var(--surface-2); padding: 8px 12px; border-radius: 10px; font-size: 14px; color: var(--muted); }

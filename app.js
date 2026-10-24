@@ -139,8 +139,8 @@ function render() {
   if (!services.includes(state.serviceFilter)) state.serviceFilter = null;
   const categories = usedCategories();
   if (!categories.includes(state.categoryFilter)) state.categoryFilter = null;
-  renderFilterChips('#service-chips', services, state.serviceFilter, 'All services');
-  renderFilterChips('#category-chips', categories, state.categoryFilter, 'All categories');
+  renderFilterSelect('#service-filter', services, state.serviceFilter, 'All services');
+  renderFilterSelect('#category-filter', categories, state.categoryFilter, 'All categories');
 
   // Filters apply across all tabs, so the tab counts show where matching titles are.
   const text = state.text.trim().toLowerCase();
@@ -196,14 +196,15 @@ function rowHtml(t) {
   </button></li>`;
 }
 
-// A row of filter chips; the first chip ("All ...") clears the filter.
-function renderFilterChips(sel, values, active, allLabel) {
-  const chips = $(sel);
-  chips.hidden = values.length < 2 && !active;
-  chips.innerHTML = [
-    `<button class="chip${active ? '' : ' active'}" data-value="">${allLabel}</button>`,
-    ...values.map((v) => `<button class="chip${v === active ? ' active' : ''}" data-value="${esc(v)}">${esc(v)}</button>`),
+// A filter dropdown; the first option ("All ...") clears the filter. Hidden until there's something to filter by.
+function renderFilterSelect(sel, values, active, allLabel) {
+  const select = $(sel);
+  select.hidden = values.length < 2 && !active;
+  select.innerHTML = [
+    `<option value="">${allLabel}</option>`,
+    ...values.map((v) => `<option value="${esc(v)}"${v === active ? ' selected' : ''}>${esc(v)}</option>`),
   ].join('');
+  select.classList.toggle('active', !!active);
 }
 
 // ---------- Add: search ----------
@@ -326,7 +327,7 @@ function openEditor(row) {
   img.hidden = !row.poster_path;
   if (row.poster_path) img.src = TMDB_IMG + row.poster_path;
   renderEditServices();
-  $('#edit-category-new').hidden = true;
+  toggleCategoryPanel(false);
   renderEditCategories();
   renderSeg('#edit-type', row.media_type);
   renderSeg('#edit-status', row.status);
@@ -372,21 +373,27 @@ function renderEditCategories() {
   const mine = usedCategories().filter((c) => !PRESET_CATEGORIES.includes(c));
   const extra = picked.filter((c) => !PRESET_CATEGORIES.includes(c) && !mine.includes(c));
   $('#edit-categories').innerHTML = [...PRESET_CATEGORIES, ...mine, ...extra]
-    .map((c) => `<button type="button" class="chip${picked.includes(c) ? ' active' : ''}" data-category="${esc(c)}">${esc(c)}</button>`)
-    .join('') + '<button type="button" class="chip add" data-category="">+ New</button>';
+    .map((c) => `<label class="check"><input type="checkbox" value="${esc(c)}"${picked.includes(c) ? ' checked' : ''}>${esc(c)}</label>`)
+    .join('');
+  renderCategorySummary();
 }
 
-function onCategoryChip(name) {
-  if (!name) {
-    const input = $('#edit-category-new');
-    input.hidden = false;
-    input.value = '';
-    input.focus();
-    return;
-  }
+function renderCategorySummary() {
+  const summary = $('#cat-summary');
   const picked = state.editing.categories;
-  state.editing.categories = picked.includes(name) ? picked.filter((c) => c !== name) : [...picked, name];
-  renderEditCategories();
+  summary.textContent = picked.length ? picked.join(', ') : 'None, tap to choose';
+  summary.classList.toggle('none', !picked.length);
+}
+
+function toggleCategoryPanel(open) {
+  $('#cat-panel').hidden = !open;
+  $('#cat-toggle').setAttribute('aria-expanded', String(open));
+}
+
+function onCategoryCheck(name, checked) {
+  const picked = state.editing.categories.filter((c) => c !== name);
+  state.editing.categories = checked ? [...picked, name] : picked;
+  renderCategorySummary();
 }
 
 // Adds what's typed in the "New category" box, reusing an existing category if only the case differs.
@@ -394,7 +401,6 @@ function addNewCategory() {
   const input = $('#edit-category-new');
   const typed = input.value.trim().replace(/\s+/g, ' ');
   input.value = '';
-  input.hidden = true;
   if (!typed) return;
   const known = [...PRESET_CATEGORIES, ...usedCategories(), ...state.editing.categories];
   const name = known.find((c) => c.toLowerCase() === typed.toLowerCase()) || typed;
@@ -646,18 +652,8 @@ function wireUi() {
     tab.addEventListener('click', () => { state.tab = tab.dataset.status; render(); });
   }
   $('#filter-text').addEventListener('input', (e) => { state.text = e.target.value; render(); });
-  $('#service-chips').addEventListener('click', (e) => {
-    const chip = e.target.closest('.chip');
-    if (!chip) return;
-    state.serviceFilter = chip.dataset.value || null;
-    render();
-  });
-  $('#category-chips').addEventListener('click', (e) => {
-    const chip = e.target.closest('.chip');
-    if (!chip) return;
-    state.categoryFilter = chip.dataset.value || null;
-    render();
-  });
+  $('#service-filter').addEventListener('change', (e) => { state.serviceFilter = e.target.value || null; render(); });
+  $('#category-filter').addEventListener('change', (e) => { state.categoryFilter = e.target.value || null; render(); });
   $('#title-list').addEventListener('click', (e) => {
     const row = e.target.closest('.title-row');
     const title = row && state.titles.find((t) => t.id === row.dataset.id);
@@ -683,10 +679,8 @@ function wireUi() {
     if (chip) onServiceChip(chip.dataset.service);
   });
   $('#edit-service-other').addEventListener('input', (e) => { state.editing.service = e.target.value.trim() || null; });
-  $('#edit-categories').addEventListener('click', (e) => {
-    const chip = e.target.closest('.chip');
-    if (chip) onCategoryChip(chip.dataset.category);
-  });
+  $('#cat-toggle').addEventListener('click', () => toggleCategoryPanel($('#cat-panel').hidden));
+  $('#edit-categories').addEventListener('change', (e) => onCategoryCheck(e.target.value, e.target.checked));
   $('#edit-category-new').addEventListener('keydown', (e) => {
     // Enter adds the category instead of submitting the whole form.
     if (e.key === 'Enter') { e.preventDefault(); addNewCategory(); }
