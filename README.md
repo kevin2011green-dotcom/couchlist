@@ -29,6 +29,10 @@ In Supabase SQL Editor, paste all of `supabase-suggestions.sql` and click **Run*
 This adds display names (`profiles`), the `suggestions` inbox, and the `send_suggestion` function.
 Friends need their own Couchlist account to receive suggestions, so leave sign-ups open.
 
+### 1c. Categories
+In Supabase SQL Editor, run `supabase-categories.sql` (adds a `categories` column to `titles`).
+Run it before deploying the app version that uses categories, or saving a title will fail.
+
 ### 2. TMDB (title search, posters, where-to-watch)
 1. Create a free account at https://www.themoviedb.org, then **Settings > API** and request a developer key.
 2. Copy the **API Read Access Token** (the long one).

@@ -6,6 +6,7 @@
   --muted: #a39cb8;
   --accent: #ff7a59;
   --accent-text: #1a0f0b;
+  --cat: #b9a4ff;
   --danger: #ff5c7a;
   --ok: #5fd39a;
   --radius: 14px;
@@ -114,6 +115,10 @@ button { font: inherit; cursor: pointer; border: 0; color: inherit; background: 
 }
 .chip.active { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
 .chip.suggested:not(.active) { border-color: var(--accent); color: var(--text); }
+#category-chips .chip.active, #edit-categories .chip.active { background: var(--cat); border-color: var(--cat); color: var(--accent-text); }
+.chip.add { border-style: dashed; }
+#edit-category-new { margin-top: 8px; }
+.title-cats { margin: 4px 0 0; font-size: 12px; color: var(--cat); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .banner { background: var(--surface-2); padding: 8px 12px; border-radius: 10px; font-size: 14px; color: var(--muted); }
 

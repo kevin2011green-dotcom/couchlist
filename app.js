@@ -14,6 +14,18 @@ const SERVICES = [
   { name: 'YouTube TV', match: /^youtube tv/i },
 ];
 const OTHER = 'Other';
+
+// Starter categories. People can add their own; those show up as choices once used.
+const PRESET_CATEGORIES = [
+  'Action', 'Comedy', 'Drama', 'Mystery', 'Thriller', 'Sci-Fi', 'Horror', 'Romance', 'Crime',
+  'Holiday', 'Feel-good', 'Tearjerker', 'Family', 'Animated', 'Documentary', 'Reality',
+];
+// TMDB genre ids (movie and TV) mapped onto the starter categories, used to pre-tick new titles.
+const GENRE_CATEGORIES = {
+  28: 'Action', 12: 'Action', 10759: 'Action', 35: 'Comedy', 18: 'Drama', 9648: 'Mystery',
+  53: 'Thriller', 878: 'Sci-Fi', 14: 'Sci-Fi', 10765: 'Sci-Fi', 27: 'Horror', 10749: 'Romance',
+  80: 'Crime', 10751: 'Family', 10762: 'Family', 16: 'Animated', 99: 'Documentary', 10764: 'Reality',
+};
 const STATUS_LABELS = { watching: 'Watching', plan: 'Up next', finished: 'Finished' };
 const TMDB_IMG = 'https://image.tmdb.org/t/p/w185';
 const TMDB_API = 'https://api.themoviedb.org/3';
@@ -26,6 +38,7 @@ const state = {
   titles: [],
   tab: 'watching',
   serviceFilter: null,
+  categoryFilter: null,
   text: '',
   tmdbToken: null,
   editing: null, // the row being edited, or a draft for a new one
@@ -122,31 +135,45 @@ async function tmdb(path, params = {}) {
 // ---------- Main list ----------
 
 function render() {
+  const services = [...new Set(state.titles.map((t) => t.service).filter(Boolean))].sort();
+  if (!services.includes(state.serviceFilter)) state.serviceFilter = null;
+  const categories = usedCategories();
+  if (!categories.includes(state.categoryFilter)) state.categoryFilter = null;
+  renderFilterChips('#service-chips', services, state.serviceFilter, 'All services');
+  renderFilterChips('#category-chips', categories, state.categoryFilter, 'All categories');
+
+  // Filters apply across all tabs, so the tab counts show where matching titles are.
+  const text = state.text.trim().toLowerCase();
+  const filtered = state.titles.filter((t) =>
+    (!state.serviceFilter || t.service === state.serviceFilter) &&
+    (!state.categoryFilter || t.categories?.includes(state.categoryFilter)) &&
+    (!text || [t.name, t.notes, t.recommended_by, t.service, ...(t.categories || [])].some((f) => f?.toLowerCase().includes(text))),
+  );
   const counts = { watching: 0, plan: 0, finished: 0 };
-  for (const t of state.titles) counts[t.status]++;
+  for (const t of filtered) counts[t.status]++;
   for (const tab of $$('.tab')) {
     tab.classList.toggle('active', tab.dataset.status === state.tab);
     tab.querySelector('.count').textContent = counts[tab.dataset.status] || '';
   }
 
-  renderServiceChips();
-
-  const text = state.text.trim().toLowerCase();
-  const rows = state.titles.filter((t) =>
-    t.status === state.tab &&
-    (!state.serviceFilter || t.service === state.serviceFilter) &&
-    (!text || [t.name, t.notes, t.recommended_by, t.service].some((f) => f?.toLowerCase().includes(text))),
-  );
-
+  const rows = filtered.filter((t) => t.status === state.tab);
   $('#title-list').innerHTML = rows.map(rowHtml).join('');
 
   const empty = $('#empty-state');
   empty.hidden = rows.length > 0;
   if (!rows.length) {
+    const filteredOut = state.serviceFilter || state.categoryFilter || text;
     empty.innerHTML = state.titles.length === 0
       ? '<strong>Your list is empty</strong>Tap + to add something you\'re watching or want to watch.'
-      : `<strong>Nothing here</strong>No ${STATUS_LABELS[state.tab].toLowerCase()} titles${state.serviceFilter || text ? ' match your filters' : ''}.`;
+      : `<strong>Nothing here</strong>No ${STATUS_LABELS[state.tab].toLowerCase()} titles${filteredOut ? ' match your filters' : ''}.`;
   }
+}
+
+// Categories on my titles, in starter-list order, then my own ones alphabetically.
+function usedCategories() {
+  const used = new Set(state.titles.flatMap((t) => t.categories || []));
+  const custom = [...used].filter((c) => !PRESET_CATEGORIES.includes(c)).sort();
+  return [...PRESET_CATEGORIES.filter((c) => used.has(c)), ...custom];
 }
 
 function rowHtml(t) {
@@ -163,20 +190,20 @@ function rowHtml(t) {
     <div class="title-main">
       <p class="title-name">${esc(t.name)}</p>
       <div class="title-meta">${meta}</div>
+      ${t.categories?.length ? `<p class="title-cats">${t.categories.map(esc).join(' · ')}</p>` : ''}
       ${t.notes ? `<p class="title-note">${esc(t.notes)}</p>` : ''}
     </div>
   </button></li>`;
 }
 
-function renderServiceChips() {
-  const used = [...new Set(state.titles.map((t) => t.service).filter(Boolean))].sort();
-  if (state.serviceFilter && !used.includes(state.serviceFilter)) state.serviceFilter = null;
-  const chips = $('#service-chips');
-  chips.hidden = used.length < 2;
-  chips.innerHTML = ['All', ...used].map((s) => {
-    const active = s === 'All' ? !state.serviceFilter : state.serviceFilter === s;
-    return `<button class="chip${active ? ' active' : ''}" data-service="${esc(s)}">${esc(s)}</button>`;
-  }).join('');
+// A row of filter chips; the first chip ("All ...") clears the filter.
+function renderFilterChips(sel, values, active, allLabel) {
+  const chips = $(sel);
+  chips.hidden = values.length < 2 && !active;
+  chips.innerHTML = [
+    `<button class="chip${active ? '' : ' active'}" data-value="">${allLabel}</button>`,
+    ...values.map((v) => `<button class="chip${v === active ? ' active' : ''}" data-value="${esc(v)}">${esc(v)}</button>`),
+  ].join('');
 }
 
 // ---------- Add: search ----------
@@ -247,6 +274,7 @@ async function pickSearchResult(hit) {
     status: 'plan',
     notes: '',
     recommended_by: '',
+    categories: [...new Set((hit.genre_ids || []).map((g) => GENRE_CATEGORIES[g]).filter(Boolean))],
   });
   suggestServices(hit);
 }
@@ -283,7 +311,7 @@ function toServiceName(providerName) {
 // ---------- Add / edit details ----------
 
 function openEditor(row) {
-  state.editing = { ...row };
+  state.editing = { ...row, categories: [...(row.categories || [])] };
   state.suggested = [];
   const isNew = !row.id;
   $('#edit-heading').textContent = isNew ? 'Add to your list' : 'Details';
@@ -298,6 +326,8 @@ function openEditor(row) {
   img.hidden = !row.poster_path;
   if (row.poster_path) img.src = TMDB_IMG + row.poster_path;
   renderEditServices();
+  $('#edit-category-new').hidden = true;
+  renderEditCategories();
   renderSeg('#edit-type', row.media_type);
   renderSeg('#edit-status', row.status);
   $('#edit-sheet').showModal();
@@ -337,6 +367,41 @@ function onServiceChip(name) {
   renderEditServices();
 }
 
+function renderEditCategories() {
+  const picked = state.editing.categories;
+  const mine = usedCategories().filter((c) => !PRESET_CATEGORIES.includes(c));
+  const extra = picked.filter((c) => !PRESET_CATEGORIES.includes(c) && !mine.includes(c));
+  $('#edit-categories').innerHTML = [...PRESET_CATEGORIES, ...mine, ...extra]
+    .map((c) => `<button type="button" class="chip${picked.includes(c) ? ' active' : ''}" data-category="${esc(c)}">${esc(c)}</button>`)
+    .join('') + '<button type="button" class="chip add" data-category="">+ New</button>';
+}
+
+function onCategoryChip(name) {
+  if (!name) {
+    const input = $('#edit-category-new');
+    input.hidden = false;
+    input.value = '';
+    input.focus();
+    return;
+  }
+  const picked = state.editing.categories;
+  state.editing.categories = picked.includes(name) ? picked.filter((c) => c !== name) : [...picked, name];
+  renderEditCategories();
+}
+
+// Adds what's typed in the "New category" box, reusing an existing category if only the case differs.
+function addNewCategory() {
+  const input = $('#edit-category-new');
+  const typed = input.value.trim().replace(/\s+/g, ' ');
+  input.value = '';
+  input.hidden = true;
+  if (!typed) return;
+  const known = [...PRESET_CATEGORIES, ...usedCategories(), ...state.editing.categories];
+  const name = known.find((c) => c.toLowerCase() === typed.toLowerCase()) || typed;
+  if (!state.editing.categories.includes(name)) state.editing.categories.push(name);
+  renderEditCategories();
+}
+
 async function saveEditor(ev) {
   ev.preventDefault();
   const e = state.editing;
@@ -349,6 +414,7 @@ async function saveEditor(ev) {
     service: e.service || null,
     notes: $('#edit-notes').value.trim() || null,
     recommended_by: $('#edit-recommended').value.trim() || null,
+    categories: e.categories,
     tmdb_id: e.tmdb_id || null,
     year: e.year || null,
     poster_path: e.poster_path || null,
@@ -583,7 +649,13 @@ function wireUi() {
   $('#service-chips').addEventListener('click', (e) => {
     const chip = e.target.closest('.chip');
     if (!chip) return;
-    state.serviceFilter = chip.dataset.service === 'All' ? null : chip.dataset.service;
+    state.serviceFilter = chip.dataset.value || null;
+    render();
+  });
+  $('#category-chips').addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    state.categoryFilter = chip.dataset.value || null;
     render();
   });
   $('#title-list').addEventListener('click', (e) => {
@@ -611,6 +683,15 @@ function wireUi() {
     if (chip) onServiceChip(chip.dataset.service);
   });
   $('#edit-service-other').addEventListener('input', (e) => { state.editing.service = e.target.value.trim() || null; });
+  $('#edit-categories').addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (chip) onCategoryChip(chip.dataset.category);
+  });
+  $('#edit-category-new').addEventListener('keydown', (e) => {
+    // Enter adds the category instead of submitting the whole form.
+    if (e.key === 'Enter') { e.preventDefault(); addNewCategory(); }
+  });
+  $('#edit-category-new').addEventListener('blur', addNewCategory);
   $('#edit-type').addEventListener('click', (e) => {
     const b = e.target.closest('button');
     if (b) { state.editing.media_type = b.dataset.value; renderSeg('#edit-type', b.dataset.value); }
