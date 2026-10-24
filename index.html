@@ -42,9 +42,18 @@
   <section id="app-screen" class="screen" hidden>
     <header class="topbar">
       <h1 class="brand small">Couchlist</h1>
-      <button class="icon-btn" id="account-btn" aria-label="Account">
-        <span id="account-initial">?</span>
-      </button>
+      <div class="topbar-actions">
+        <button class="icon-btn" id="inbox-btn" aria-label="Suggestions from friends">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M22 12h-6l-2 3h-4l-2-3H2"/>
+            <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+          </svg>
+          <span class="badge" id="inbox-badge" hidden></span>
+        </button>
+        <button class="icon-btn" id="account-btn" aria-label="Account">
+          <span id="account-initial">?</span>
+        </button>
+      </div>
     </header>
 
     <nav class="tabs" role="tablist">
@@ -126,6 +135,8 @@
         <textarea id="edit-notes" rows="3" placeholder="Anything you want to remember"></textarea>
       </label>
 
+      <button type="button" class="secondary" id="edit-suggest" hidden>Suggest to a friend</button>
+
       <p id="edit-message" class="message" hidden></p>
       <div class="sheet-actions">
         <button type="button" class="danger" id="edit-delete" hidden>Delete</button>
@@ -141,9 +152,47 @@
       <button class="icon-btn" data-close aria-label="Close">&times;</button>
     </div>
     <p>Signed in as <strong id="account-email"></strong></p>
+    <form id="profile-form" class="inline-form">
+      <label>Your name, as friends see it on suggestions
+        <input id="profile-name" maxlength="40" placeholder="e.g. Kevin">
+      </label>
+      <button type="submit" class="secondary">Save name</button>
+      <p id="profile-message" class="message" hidden></p>
+    </form>
     <div class="sheet-actions">
       <button class="primary" id="sign-out">Sign out</button>
     </div>
+  </dialog>
+
+  <!-- Suggest a title to a friend -->
+  <dialog id="suggest-sheet" class="sheet">
+    <form id="suggest-form">
+      <div class="sheet-head">
+        <h2>Suggest to a friend</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Close">&times;</button>
+      </div>
+      <p class="muted">Suggesting <strong id="suggest-title"></strong></p>
+      <label>Friend's email (the one they use for Couchlist)
+        <input type="email" id="suggest-email" autocomplete="off" required>
+      </label>
+      <div class="chips wrap" id="suggest-friends"></div>
+      <label>Message (optional)
+        <textarea id="suggest-note" rows="3" maxlength="500" placeholder="Why they'll love it"></textarea>
+      </label>
+      <p id="suggest-message" class="message" hidden></p>
+      <div class="sheet-actions">
+        <button type="submit" class="primary" id="suggest-send">Send</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Suggestions received -->
+  <dialog id="inbox-sheet" class="sheet">
+    <div class="sheet-head">
+      <h2>Suggestions for you</h2>
+      <button class="icon-btn" data-close aria-label="Close">&times;</button>
+    </div>
+    <ul id="inbox-list" class="inbox-list"></ul>
   </dialog>
 
   <script type="module" src="app.js"></script>

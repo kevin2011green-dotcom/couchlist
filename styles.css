@@ -58,6 +58,15 @@ button { font: inherit; cursor: pointer; border: 0; color: inherit; background: 
 }
 .primary:disabled { opacity: 0.6; }
 .danger { color: var(--danger); padding: 12px 8px; font-weight: 600; }
+.secondary {
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 600;
+  padding: 11px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--surface-2);
+}
+.secondary:disabled { opacity: 0.6; }
 .link { color: var(--muted); text-decoration: underline; padding: 6px; }
 .icon-btn {
   width: 40px; height: 40px; border-radius: 50%;
@@ -66,6 +75,15 @@ button { font: inherit; cursor: pointer; border: 0; color: inherit; background: 
   font-size: 22px; line-height: 1;
 }
 #account-btn span { font-size: 16px; font-weight: 700; text-transform: uppercase; }
+.topbar-actions { display: flex; gap: 10px; }
+#inbox-btn { position: relative; color: var(--muted); }
+#inbox-btn.has-items { color: var(--text); }
+.badge {
+  position: absolute; top: -4px; right: -4px;
+  min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px;
+  background: var(--accent); color: var(--accent-text);
+  font-size: 12px; font-weight: 700; line-height: 20px; text-align: center;
+}
 
 .message { margin: 0; font-size: 14px; color: var(--danger); }
 .message.ok { color: var(--ok); }
@@ -164,3 +182,17 @@ legend { font-size: 14px; color: var(--muted); padding: 0; margin-bottom: 8px; }
 .search-results .title-row { background: var(--surface-2); }
 .search-results .poster { background: var(--surface); }
 .search-results .status-line { color: var(--muted); padding: 16px 4px; }
+
+.inline-form { display: grid; gap: 10px; margin: 8px 0 16px; }
+.inline-form .secondary { justify-self: start; }
+
+/* Suggestions inbox */
+.inbox-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.inbox-list .status-line { color: var(--muted); padding: 16px 4px; }
+.suggestion { background: var(--surface-2); border-radius: var(--radius); padding: 12px; display: grid; gap: 10px; }
+.suggestion-top { display: grid; grid-template-columns: 56px 1fr; gap: 12px; align-items: start; }
+.suggestion .poster { background: var(--surface); }
+.suggestion-from { font-size: 13px; color: var(--muted); margin: 0 0 4px; }
+.suggestion-msg { margin: 6px 0 0; font-size: 14px; font-style: italic; }
+.suggestion-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.suggestion-actions .primary, .suggestion-actions .secondary { padding: 9px 16px; }

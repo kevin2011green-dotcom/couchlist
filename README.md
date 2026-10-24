@@ -22,9 +22,12 @@ Plain HTML/JS PWA (no build step), Supabase for accounts and storage, TMDB for t
    Never use the secret / service_role key.
 4. **Authentication > Sign In / Providers > Email**: for a household app, turn **off** "Confirm email"
    so new accounts work immediately.
-5. After everyone in the house has made an account, turn **off** "Allow new users to sign up"
-   (Authentication > Sign In / Providers) so strangers can't create accounts.
-6. **Authentication > URL Configuration**: set Site URL to the live app URL.
+5. **Authentication > URL Configuration**: set Site URL to the live app URL.
+
+### 1b. Suggest to a friend
+In Supabase SQL Editor, paste all of `supabase-suggestions.sql` and click **Run**.
+This adds display names (`profiles`), the `suggestions` inbox, and the `send_suggestion` function.
+Friends need their own Couchlist account to receive suggestions, so leave sign-ups open.
 
 ### 2. TMDB (title search, posters, where-to-watch)
 1. Create a free account at https://www.themoviedb.org, then **Settings > API** and request a developer key.

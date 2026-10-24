@@ -30,6 +30,8 @@ const state = {
   tmdbToken: null,
   editing: null, // the row being edited, or a draft for a new one
   signUpMode: false,
+  suggestions: [], // suggestions friends have sent me
+  suggesting: null, // the title I'm about to suggest to a friend
 };
 
 let supabase;
@@ -62,7 +64,9 @@ async function setUser(user) {
   state.user = user;
   if (!user) {
     state.titles = [];
+    state.suggestions = [];
     state.tmdbToken = null;
+    renderInboxBadge();
     show('auth-screen');
     return;
   }
@@ -75,6 +79,8 @@ async function setUser(user) {
   render();
   await loadTitles();
   loadTmdbToken();
+  loadProfile();
+  loadSuggestions();
 }
 
 // ---------- Data ----------
@@ -285,6 +291,7 @@ function openEditor(row) {
   $('#edit-recommended').value = row.recommended_by || '';
   $('#edit-notes').value = row.notes || '';
   $('#edit-delete').hidden = isNew;
+  $('#edit-suggest').hidden = isNew;
   $('#edit-message').hidden = true;
   $('#provider-hint').hidden = true;
   const img = $('#edit-poster');
@@ -364,6 +371,7 @@ async function saveEditor(ev) {
   writeCache();
   render();
   $('#edit-sheet').close();
+  if (e.fromSuggestion) removeSuggestion(e.fromSuggestion);
 }
 
 async function deleteEditing() {
@@ -375,6 +383,163 @@ async function deleteEditing() {
   writeCache();
   render();
   $('#edit-sheet').close();
+}
+
+// ---------- Profile ----------
+
+async function loadProfile() {
+  const { data } = await supabase.from('profiles').select('display_name').eq('id', state.user.id).maybeSingle();
+  $('#profile-name').value = data?.display_name || '';
+}
+
+async function saveProfile(ev) {
+  ev.preventDefault();
+  const display_name = $('#profile-name').value.trim() || null;
+  const { error } = await supabase.from('profiles').upsert({ id: state.user.id, display_name });
+  showMessage('#profile-message', error ? 'Couldn\'t save: ' + error.message : 'Saved.', !error);
+}
+
+// ---------- Suggest to a friend ----------
+
+const friendsKey = () => `couchlist:friends:${state.user.id}`;
+
+function readFriends() {
+  try { return JSON.parse(localStorage.getItem(friendsKey())) || []; } catch { return []; }
+}
+
+function rememberFriend(email) {
+  const friends = [email, ...readFriends().filter((f) => f !== email)].slice(0, 8);
+  try { localStorage.setItem(friendsKey(), JSON.stringify(friends)); } catch {}
+}
+
+function openSuggest() {
+  const e = state.editing;
+  state.suggesting = state.titles.find((t) => t.id === e.id) || e;
+  $('#edit-sheet').close();
+  $('#suggest-title').textContent = state.suggesting.name;
+  $('#suggest-email').value = '';
+  $('#suggest-note').value = '';
+  $('#suggest-message').hidden = true;
+  $('#suggest-friends').innerHTML = readFriends()
+    .map((f) => `<button type="button" class="chip" data-email="${esc(f)}">${esc(f)}</button>`)
+    .join('');
+  $('#suggest-sheet').showModal();
+}
+
+async function sendSuggestion(ev) {
+  ev.preventDefault();
+  const t = state.suggesting;
+  const email = $('#suggest-email').value.trim().toLowerCase();
+  const btn = $('#suggest-send');
+  btn.disabled = true;
+  const { error } = await supabase.rpc('send_suggestion', {
+    recipient_email: email,
+    p_name: t.name,
+    p_media_type: t.media_type,
+    p_tmdb_id: t.tmdb_id || null,
+    p_year: t.year || null,
+    p_poster_path: t.poster_path || null,
+    p_service: t.service || null,
+    p_message: $('#suggest-note').value.trim() || null,
+  });
+  btn.disabled = false;
+  if (error) {
+    showMessage('#suggest-message', navigator.onLine ? error.message : 'You\'re offline. Try again when connected.');
+    return;
+  }
+  rememberFriend(email);
+  showMessage('#suggest-message', `Sent to ${email}.`, true);
+  setTimeout(() => $('#suggest-sheet').close(), 1200);
+}
+
+// ---------- Suggestions inbox ----------
+
+async function loadSuggestions() {
+  const { data, error } = await supabase.from('suggestions').select('*').order('created_at', { ascending: false });
+  if (error) return;
+  state.suggestions = data;
+  renderInboxBadge();
+  if ($('#inbox-sheet').open) renderInbox();
+}
+
+function renderInboxBadge() {
+  const n = state.suggestions.length;
+  const badge = $('#inbox-badge');
+  badge.hidden = n === 0;
+  badge.textContent = n;
+  $('#inbox-btn').classList.toggle('has-items', n > 0);
+}
+
+function onMyList(s) {
+  return state.titles.some((t) =>
+    (s.tmdb_id && t.tmdb_id === s.tmdb_id && t.media_type === s.media_type) ||
+    t.name.toLowerCase() === s.name.toLowerCase(),
+  );
+}
+
+function renderInbox() {
+  const list = $('#inbox-list');
+  if (!state.suggestions.length) {
+    list.innerHTML = '<li class="status-line">No suggestions right now. When a friend suggests something, it shows up here.</li>';
+    return;
+  }
+  list.innerHTML = state.suggestions.map((s) => {
+    const poster = s.poster_path
+      ? `<img class="poster" src="${TMDB_IMG}${esc(s.poster_path)}" alt="" loading="lazy">`
+      : `<div class="poster">${esc(s.name[0] || '?')}</div>`;
+    const meta = [
+      s.service ? `<span class="service-badge">${esc(s.service)}</span>` : '',
+      `<span>${s.media_type === 'movie' ? 'Movie' : 'Show'}${s.year ? ' · ' + s.year : ''}</span>`,
+      onMyList(s) ? '<span>· already on your list</span>' : '',
+    ].join('');
+    return `<li class="suggestion" data-id="${s.id}">
+      <div class="suggestion-top">
+        ${poster}
+        <div class="title-main">
+          <p class="suggestion-from">From ${esc(s.sender_name)}</p>
+          <p class="title-name">${esc(s.name)}</p>
+          <div class="title-meta">${meta}</div>
+          ${s.message ? `<p class="suggestion-msg">"${esc(s.message)}"</p>` : ''}
+        </div>
+      </div>
+      <div class="suggestion-actions">
+        <button class="secondary" data-action="decline">No thanks</button>
+        <button class="primary" data-action="add">Add to my list</button>
+      </div>
+    </li>`;
+  }).join('');
+}
+
+function openInbox() {
+  renderInbox();
+  $('#inbox-sheet').showModal();
+  loadSuggestions();
+}
+
+function acceptSuggestion(s) {
+  $('#inbox-sheet').close();
+  openEditor({
+    tmdb_id: s.tmdb_id,
+    media_type: s.media_type,
+    name: s.name,
+    year: s.year,
+    poster_path: s.poster_path,
+    service: s.service,
+    status: 'plan',
+    notes: s.message || '',
+    recommended_by: s.sender_name,
+    fromSuggestion: s.id,
+  });
+  if (s.tmdb_id) suggestServices({ id: s.tmdb_id, media_type: s.media_type });
+}
+
+async function removeSuggestion(id) {
+  const { error } = await supabase.from('suggestions').delete().eq('id', id);
+  if (error) return false;
+  state.suggestions = state.suggestions.filter((s) => s.id !== id);
+  renderInboxBadge();
+  if ($('#inbox-sheet').open) renderInbox();
+  return true;
 }
 
 // ---------- Auth ----------
@@ -455,7 +620,30 @@ function wireUi() {
     if (b) { state.editing.status = b.dataset.value; renderSeg('#edit-status', b.dataset.value); }
   });
 
-  $('#account-btn').addEventListener('click', () => $('#account-sheet').showModal());
+  $('#edit-suggest').addEventListener('click', openSuggest);
+  $('#suggest-form').addEventListener('submit', sendSuggestion);
+  $('#suggest-friends').addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (chip) $('#suggest-email').value = chip.dataset.email;
+  });
+
+  $('#inbox-btn').addEventListener('click', openInbox);
+  $('#inbox-list').addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-action]');
+    const s = btn && state.suggestions.find((x) => x.id === btn.closest('.suggestion').dataset.id);
+    if (!s) return;
+    if (btn.dataset.action === 'add') acceptSuggestion(s);
+    else {
+      btn.disabled = true;
+      if (!(await removeSuggestion(s.id))) btn.disabled = false;
+    }
+  });
+
+  $('#profile-form').addEventListener('submit', saveProfile);
+  $('#account-btn').addEventListener('click', () => {
+    $('#profile-message').hidden = true;
+    $('#account-sheet').showModal();
+  });
   $('#sign-out').addEventListener('click', async () => {
     $('#account-sheet').close();
     await supabase.auth.signOut();
@@ -470,9 +658,14 @@ function wireUi() {
     });
   }
 
-  window.addEventListener('online', loadTitles);
+  const refresh = () => {
+    if (!state.user) return;
+    loadTitles();
+    loadSuggestions();
+  };
+  window.addEventListener('online', refresh);
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && state.user) loadTitles();
+    if (document.visibilityState === 'visible') refresh();
   });
 }
 
